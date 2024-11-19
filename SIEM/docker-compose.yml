@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx
+    container_name: nginx-container
+    ports:
+      - "80:80"
+    restart: always
+    networks:
+      - mynetworks
+    volumes:
+      - nginx-logs:/var/log/nginx
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.9
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    networks:
+      - mynetworks
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:7.17.9
+    container_name: logstash
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline
+      - nginx-logs:/var/log/nginx
+    ports:
+      - "5000:5000"
+    depends_on:
+      - elasticsearch
+    networks:
+      - mynetworks
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:7.17.9
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - mynetworks
+
+
+#------------------------- volumes -------------------------#
+
+
+
+volumes:
+  nginx-volumes:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/backend/nginx/config
+      o: bind
+
+  esdata:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/logs
+      o: bind
+      
+  nginx-logs:
+    driver: local
+    driver_opts:
+      type: none
+      device: ${PWD}/backend/nginx/logs
+      o: bind
+
+
+networks:
+  mynetworks:
+    driver: bridge
